@@ -5,7 +5,8 @@
 #include "sound.h"
       
 Sound::Sound (char *device) : 
-     m_fht(128)
+     m_fht(128),
+     m_stopping(false)
 {
     snd_pcm_hw_params_t *hw_params;
     unsigned int rate = 44100;
@@ -68,21 +69,27 @@ Sound::Sound (char *device) :
     }
 
     m_samples = new int16_t[128];
-    m_mutex = PTHREAD_MUTEX_INITIALIZER;
-    m_running = true;
+
+    if (pthread_mutex_init(&m_mutex, 0))
+        pthread_create(&m_thread, 0, &Sound::startLoop, this);
 }
 
 Sound::~Sound() {
-    m_running = false;
+    m_stopping = true;
+    pthread_join(m_thread, 0);
 
-    pthread_mutex_lock(&m_mutex);
     delete m_samples;
-    pthread_mutex_unlock(&m_mutex);
     snd_pcm_close (m_captureHandle);
+
+    pthread_mutex_destroy(&m_mutex);
 }
 
-void Sound::run() {
-    while (m_running) {
+void *Sound::startLoop(void *obj) {
+    reinterpret_cast<Sound*>(obj)->mainloop();
+}
+
+void Sound::mainloop() {
+    while (!m_stopping) {
         pthread_mutex_lock(&m_mutex);
         if ((m_err = snd_pcm_readi (m_captureHandle, m_samples, 128)) != 128) {
             fprintf (stderr, "read from audio interface failed (%s)\n",
@@ -100,10 +107,15 @@ int Sound::getBass() {
     pthread_mutex_lock(&m_mutex);
     
     float *spectrum = new float[m_fht.size()];
-    m_fht.copy(&spectrum[0], m_samples);
-    m_fht.logSpectrum(m_samples, spectrum);
-    m_fht.scale(m_samples, 1.0 / 20);
-    bass = 10 * m_samples[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
+    float *samples = new float[m_fht.size()];
+    for (short i=0; i<m_fht.size(); i++) {//bleh, must be a better way
+        samples[i] = spectrum[i] = m_samples[i];
+    }
+
+//    m_fht.copy(&spectrum[0], samples);
+    m_fht.logSpectrum(samples, spectrum);
+    m_fht.scale(samples, 1.0 / 20);
+    bass = 10 * samples[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
     
     pthread_mutex_unlock(&m_mutex);
 

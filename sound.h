@@ -10,17 +10,23 @@ class Sound {
 public:
     Sound(char *device);
     ~Sound();
-    void run();
-    void stop();
     int getBass();
 
 private:
+    static void *startLoop(void *);
+    void mainloop();
+
     int16_t *m_samples;
     pthread_mutex_t m_mutex;
-    bool m_running;
+    pthread_t m_thread;
+    FHT m_fht;
+
+    bool m_stopping;
+
     snd_pcm_t *m_captureHandle;
     int m_err;
-    FHT m_fht;
+
 };
 
 #endif //SOUND_H
+
