@@ -3,9 +3,10 @@
 #include <stdlib.h>
 
 #include "sound.h"
-#include "fht.h"
       
-Sound::Sound (char *device) {
+Sound::Sound (char *device) : 
+     m_fht(128)
+{
     snd_pcm_hw_params_t *hw_params;
     unsigned int rate = 44100;
 
@@ -95,7 +96,17 @@ void Sound::run() {
 }
 
 int Sound::getBass() {
-        pthread_mutex_lock(&m_mutex);
-        pthread_mutex_unlock(&m_mutex);
+    int bass;
+    pthread_mutex_lock(&m_mutex);
+    
+    float *spectrum = new float[m_fht.size()];
+    m_fht.copy(&spectrum[0], m_samples);
+    m_fht.logSpectrum(m_samples, spectrum);
+    m_fht.scale(m_samples, 1.0 / 20);
+    bass = 10 * m_samples[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
+    
+    pthread_mutex_unlock(&m_mutex);
+
+    return bass;
 }
 

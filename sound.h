@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <alsa/asoundlib.h>
 
+#include "fht.h"
+
 class Sound {
 public:
     Sound(char *device);
@@ -18,6 +20,7 @@ private:
     bool m_running;
     snd_pcm_t *m_captureHandle;
     int m_err;
+    FHT m_fht;
 };
 
 #endif //SOUND_H
