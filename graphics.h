@@ -1,9 +1,10 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-#define FILENAME "lekube.3ds"
+#define FILENAME "lolqueb.3ds"
 #include "C3dsParser.h"
 #include <stdint.h>
+#include <map>
 
 class Graphics {
 
@@ -18,10 +19,13 @@ private:
     static void drawScene();
     void compileObject();
     void drawObject();
-    vector3 *m_vertices;
-    face    *m_faces;
-    int     m_vertCount;
-    int     m_faceCount;
+    map<string, face*>    m_faces;
+    map<string, vector3*> m_vertices;
+    map<string, int>      m_vertCount;
+    map<string, int>      m_faceCount;
+    map<string, color*>  m_faceMaterial;
+    
+    map<string, color>    m_colors;
     static Graphics *me;
     C3dsParser* m_parser;
 

@@ -112,7 +112,6 @@ int Sound::getBass() {
         samples[i] = spectrum[i] = m_samples[i];
     }
 
-//    m_fht.copy(&spectrum[0], samples);
     m_fht.logSpectrum(samples, spectrum);
     m_fht.scale(samples, 1.0 / 20);
     bass = 10 * samples[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out

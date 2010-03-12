@@ -15,6 +15,7 @@
       #define MATERIAL_BLOCK 0xAFFF
          #define MATERIAL_NAME 0xA000
          #define AMBIENT_COLOR 0xA010
+             #define RGB1 0x0011
          #define DIFFUSE_COLOR 0xA020
          #define SPECULAR_COLOR 0xA030
          #define TEXTURE_MAP 1 0xA200
