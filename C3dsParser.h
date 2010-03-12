@@ -1,12 +1,13 @@
 #ifndef C3DSPARSER_H
 #define C3DSPARSER_H
 #include <string>
+#include "vector.h"
 
 using namespace std;
 
-typedef struct { float x,y,z; } vector3;
 typedef struct { uint16_t a,b,c; } face;
 typedef struct { uint8_t r,g,b; } color;
+typedef struct { color diffuse,specular; } material;
 
 typedef struct __attribute__ ((__packed__)) chunkHeader {
 	unsigned short chunkId;

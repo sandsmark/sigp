@@ -8,7 +8,10 @@
 Graphics *Graphics::me;
 
 
-Graphics::Graphics(int argc, char **argv) {
+Graphics::Graphics(int argc, char **argv):
+        m_angle(0),
+        m_angleSpeed(1) 
+{
     glutInit(&argc, argv);
     glutInitWindowSize(640, 480);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
@@ -27,13 +30,26 @@ Graphics::Graphics(int argc, char **argv) {
     me = this; // having fun already
     me->m_parser = new C3dsParser(FILENAME);
     me->compileObject();
+    GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+    GLfloat mat_shininess[] = { 50.0 };
+    GLfloat light_position[] = { 1.0, 1.0, 1.0, 0.0 };
+    glClearColor (0.0, 0.0, 0.0, 0.0);
+    glShadeModel (GL_SMOOTH);
+    
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+    
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void Graphics::display(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    gluLookAt(-15,  10, 10, // Eye
+    gluLookAt(-5,  5, 5, // Eye
                0, 0, 0,  // Focus
                0.0,  1.0,  0.0); // Up
     
@@ -48,6 +64,12 @@ void Graphics::display(void) {
 void Graphics::compileObject(){
     string currentMesh, currentMaterial, mat;
     uint16_t numFaces;
+    map<string, face*>    faces;
+    map<string, vector3*> vertices;
+    map<string, int>      vertCount;
+    map<string, int>      faceCount;
+    map<string, color*>   faceMaterial;
+    map<string, color>    colors;
 
     while ( !me->m_parser->eof() ) {
 		me->m_parser->enterChunk();
@@ -77,16 +99,16 @@ void Graphics::compileObject(){
 		    case VERTICES_LIST:
                 assert(!currentMesh.empty());
 
-				me->m_vertCount[currentMesh] = me->m_parser->extractCount();
-				printf(" found %u me->m_vertices\n", me->m_vertCount[currentMesh]);
-				me->m_vertices[currentMesh] = me->m_parser->extractArray<vector3>(me->m_vertCount[currentMesh]);
+				vertCount[currentMesh] = me->m_parser->extractCount();
+				printf(" found %u me->m_vertices\n", vertCount[currentMesh]);
+				vertices[currentMesh] = me->m_parser->extractArray<vector3>(vertCount[currentMesh]);
 		       	break;
 
 			case FACES_LIST:
-				me->m_faceCount[currentMesh] = me->m_parser->extractCount();
-				printf(" found %u me->m_faces\n", me->m_faceCount[currentMesh]);
+				faceCount[currentMesh] = me->m_parser->extractCount();
+				printf(" found %u me->m_faces\n", faceCount[currentMesh]);
                 printf("Offset: %x\n", me->m_parser->getChunkOffset());
-				me->m_faces[currentMesh] = me->m_parser->extractArray<face>(me->m_faceCount[currentMesh], 2);
+				faces[currentMesh] = me->m_parser->extractArray<face>(faceCount[currentMesh], 2);
 		       	break;
 				
 			case MATERIAL_BLOCK:
@@ -103,18 +125,18 @@ void Graphics::compileObject(){
                 break;
 
             case RGB1:
-                m_colors[currentMaterial] = me->m_parser->extractValue<color>();
-                printf("Diffuse color: r:%i, g:%i, b:%i\n", m_colors[currentMaterial]);
+                colors[currentMaterial] = me->m_parser->extractValue<color>();
+                printf("Diffuse color: r:%i, g:%i, b:%i\n", colors[currentMaterial]);
 				me->m_parser->skipChunk();
                 break;
 
             case FACES_MATERIAL:
                 mat = me->m_parser->extractStrData();
                 numFaces = me->m_parser->extractValue<uint16_t>();
-                me->m_faceMaterial[currentMesh] = new color[numFaces];
+                faceMaterial[currentMesh] = new color[numFaces];
                 printf("Colored faces: %hu\n", numFaces);
                 for (uint16_t i=0; i<numFaces; i++) {
-                    me->m_faceMaterial[currentMesh][i] = m_colors[mat];
+                    faceMaterial[currentMesh][i] = colors[mat];
                 }
                 break;
 
@@ -125,39 +147,50 @@ void Graphics::compileObject(){
 
             }
     }
+
     printf("Finished parsing!\n");
     vector3 *vertex;
     face *cface;
-    return;
+    vector3 normal;
 
-    for (map<string, vector3*>::iterator it = m_vertices.begin(); it != m_vertices.end(); it++) {
-        vertex = m_vertices[(*it).first];
-        cface = m_faces[(*it).first];
-        printf("Mesh:%s\n", (*it).first.c_str());
-        for ( int i=0; i < 12; i++){
-            printf(" Coordinates %f %f %f\n", vertex[i].x, vertex[i].y, vertex[i].z);
-            printf(" Face %u:  %u %u %u\n", i, cface[i].a, cface[i].b, cface[i].c);
+    for (map<string, vector3*>::iterator it = vertices.begin(); it != vertices.end(); it++) {
+        me->m_callLists[(*it).first] = glGenLists(1);
+        glNewList(me->m_callLists[(*it).first], GL_COMPILE);
+
+        vertex = vertices[(*it).first];
+        cface = faces[(*it).first];
+
+        for (int i=0; i<faceCount[(*it).first]; i++) {
+            glBegin(GL_TRIANGLES);
+            normal = vector3::normal(vertex[cface[i].a], vertex[cface[i].b], vertex[cface[i].c]);
+            glNormal3f(normal.x, normal.y, normal.z);
+            glMaterialiv(GL_FRONT, GL_SPECULAR, (GLint*)&colors[(*it).first]);
+            glVertex3fv((GLfloat*)&vertex[cface[i].a]);
+            glVertex3fv((GLfloat*)&vertex[cface[i].b]);
+            glVertex3fv((GLfloat*)&vertex[cface[i].c]);
+            glEnd();
         }
+
+        glEndList();
+
+//        printf("Mesh:%s\n", (*it).first.c_str());
+//        for ( int i=0; i < 12; i++){
+//            printf(" Coordinates %f %f %f\n", vertex[i].x, vertex[i].y, vertex[i].z);
+//            printf(" Face %u:  %u %u %u\n", i, cface[i].a, cface[i].b, cface[i].c);
+//        }
     }
 }
 
 void Graphics::drawObject(){
-    glEnableClientState(GL_VERTEX_ARRAY | GL_COLOR_ARRAY);
-    string meshName, colorName; 
-    for (map<string, vector3*>::iterator it = m_vertices.begin(); it != m_vertices.end(); it++) {
-        meshName = (*it).first;
+    m_angle += m_angleSpeed;
+    glRotatef(m_angle, 1, 1, 1);
 
-        glColorPointer(3, GL_UNSIGNED_BYTE, 0, me->m_faceMaterial[meshName]);
-        glVertexPointer(3, GL_FLOAT, 0, me->m_vertices[meshName]);
-        glDrawElements(GL_TRIANGLES, me->m_faceCount[meshName]*3, GL_UNSIGNED_SHORT, me->m_faces[meshName]);
-    }
-    glDisableClientState(GL_VERTEX_ARRAY);
+    m_scale += 0.01;
+    if (m_scale > 1) m_scale = 0.5;
+    glScalef(m_scale, m_scale, m_scale);
 
-    GLenum errCode;
-    const GLubyte *errStr;
-    if ((errCode = glGetError()) != GL_NO_ERROR) {
-        errStr = gluErrorString(errCode);
-        cerr << "OpenGL ERROR: " << (char*)errStr << endl;
+    for (map<string, GLuint>::iterator it = m_callLists.begin(); it != m_callLists.end(); it++) {
+        glCallList(m_callLists[(*it).first]);
     }
 }
 
