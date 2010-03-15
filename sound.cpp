@@ -70,7 +70,7 @@ Sound::Sound (const char *device) :
 
     m_samples = new int16_t[128];
 
-    pthread_mutex_init(&m_mutex, 0) // fuck error handling
+    pthread_mutex_init(&m_mutex, 0); // fuck error handling
     m_thread = (pthread_t*)malloc(sizeof(pthread_t));
     pthread_create(m_thread, 0, &Sound::startLoop, this);
 }
