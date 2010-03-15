@@ -1,10 +1,11 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-#define FILENAME "cube.3ds"
+#define FILENAME "sphere.3ds"
 #include "C3dsParser.h"
+#include "sound.h"
 #include <stdint.h>
-#include <map>
+#include <vector>
 #include <GL/gl.h>
 
 class Graphics {
@@ -20,14 +21,16 @@ private:
     static void drawScene();
     void compileObject();
     void drawObject();
-    map<string, GLuint> m_callLists;
+    vector<GLuint> m_callLists;
     
     static Graphics *me;
     C3dsParser* m_parser;
 
     float m_angle;
     float m_angleSpeed;
-    float m_scale;
+
+    Sound m_sound;
+    suseconds_t m_lastUpdate;
 
 };
 

@@ -4,13 +4,17 @@
 #include <GL/glut.h>
 #include <assert.h>
 #include <iostream>
+#include <sys/time.h>
+#include <math.h>
+#include <map>
 
 Graphics *Graphics::me;
 
 
 Graphics::Graphics(int argc, char **argv):
         m_angle(0),
-        m_angleSpeed(1) 
+        m_angleSpeed(1),
+        m_sound("default")
 {
     glutInit(&argc, argv);
     glutInitWindowSize(640, 480);
@@ -20,7 +24,7 @@ Graphics::Graphics(int argc, char **argv):
     glClearColor(0, 0, 0, 0); 
     
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    glEnable(GL_TEXTURE_2D);  
+    //glEnable(GL_TEXTURE_2D);  
     
     glutDisplayFunc(&display);
     glutIdleFunc(&display);
@@ -32,13 +36,15 @@ Graphics::Graphics(int argc, char **argv):
     me->compileObject();
     GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
     GLfloat mat_shininess[] = { 50.0 };
-    GLfloat light_position[] = { 1.0, 1.0, 1.0, 0.0 };
     glClearColor (0.0, 0.0, 0.0, 0.0);
     glShadeModel (GL_SMOOTH);
     
+
+    GLfloat light_position[] = { -5.0, 5.0, 5.0, 0.0 };
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
     glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
     glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
-    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
     
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
@@ -48,17 +54,27 @@ Graphics::Graphics(int argc, char **argv):
 void Graphics::display(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
-
     gluLookAt(-5,  5, 5, // Eye
                0, 0, 0,  // Focus
                0.0,  1.0,  0.0); // Up
     
-    //glTranslatef(0.0,0.0,-2.0);
-    
-    //drawScene();
-    me->drawObject();
-    glutSwapBuffers();
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    suseconds_t cur = (now.tv_sec * 1000000) + now.tv_usec;
+    suseconds_t diff = cur - me->m_lastUpdate;
+    me->m_lastUpdate = cur;
 
+    me->m_angle += diff / 5000;
+    if (me->m_angle > 360) me->m_angle = -360;
+    glRotatef(me->m_angle, 1, 0, 0);
+
+    if (me->m_sound.getBass() > 0) printf("KEKEKEKEKEK\n");
+
+//    glutSolidSphere(2,5,5);
+    for (int i=0; i<me->m_callLists.size(); i++)
+       glCallList(me->m_callLists[i]);
+
+    glutSwapBuffers();
 }
 
 void Graphics::compileObject(){
@@ -138,6 +154,7 @@ void Graphics::compileObject(){
                 for (uint16_t i=0; i<numFaces; i++) {
                     faceMaterial[currentMesh][i] = colors[mat];
                 }
+                me->m_parser->skipChunk();
                 break;
 
 			default:
@@ -152,49 +169,34 @@ void Graphics::compileObject(){
     vector3 *vertex;
     face *cface;
     vector3 normal;
+    GLuint list;
 
     for (map<string, vector3*>::iterator it = vertices.begin(); it != vertices.end(); it++) {
-        me->m_callLists[(*it).first] = glGenLists(1);
-        glNewList(me->m_callLists[(*it).first], GL_COMPILE);
+        list = glGenLists(1);
+        glNewList(list, GL_COMPILE);
+        me->m_callLists.push_back(list);
 
         vertex = vertices[(*it).first];
         cface = faces[(*it).first];
 
         for (int i=0; i<faceCount[(*it).first]; i++) {
-            glBegin(GL_TRIANGLES);
+//            glBegin(GL_POINTS);
+//            glPointSize(280.0);
             normal = vector3::normal(vertex[cface[i].a], vertex[cface[i].b], vertex[cface[i].c]);
-            glNormal3f(normal.x, normal.y, normal.z);
+//            glVertex3f( normal.x*1.2, normal.y*1.2, normal.z*1.2);
+//            glEnd();
+            glBegin(GL_TRIANGLES);
+            //printf("Face %i : %f %f %f\n", i, normal.x, normal.y, normal.z); 
             glMaterialiv(GL_FRONT, GL_SPECULAR, (GLint*)&colors[(*it).first]);
+            glNormal3f(normal.x, normal.y, normal.z);
             glVertex3fv((GLfloat*)&vertex[cface[i].a]);
             glVertex3fv((GLfloat*)&vertex[cface[i].b]);
             glVertex3fv((GLfloat*)&vertex[cface[i].c]);
             glEnd();
         }
-
         glEndList();
-
-//        printf("Mesh:%s\n", (*it).first.c_str());
-//        for ( int i=0; i < 12; i++){
-//            printf(" Coordinates %f %f %f\n", vertex[i].x, vertex[i].y, vertex[i].z);
-//            printf(" Face %u:  %u %u %u\n", i, cface[i].a, cface[i].b, cface[i].c);
-//        }
     }
 }
-
-void Graphics::drawObject(){
-    m_angle += m_angleSpeed;
-    glRotatef(m_angle, 1, 1, 1);
-
-    m_scale += 0.01;
-    if (m_scale > 1) m_scale = 0.5;
-    glScalef(m_scale, m_scale, m_scale);
-
-    for (map<string, GLuint>::iterator it = m_callLists.begin(); it != m_callLists.end(); it++) {
-        glCallList(m_callLists[(*it).first]);
-    }
-}
-
-
 
 void Graphics::reshape(int w, int h) {
   glViewport(0, 0, w, h);
@@ -209,3 +211,4 @@ void Graphics::reshape(int w, int h) {
 void Graphics::run() {
   glutMainLoop();
 }
+

@@ -4,8 +4,8 @@
 
 #include "sound.h"
       
-Sound::Sound (char *device) : 
-     m_fht(128),
+Sound::Sound (const char *device) : 
+     m_fht(7),
      m_stopping(false)
 {
     snd_pcm_hw_params_t *hw_params;
@@ -70,13 +70,14 @@ Sound::Sound (char *device) :
 
     m_samples = new int16_t[128];
 
-    if (pthread_mutex_init(&m_mutex, 0))
-        pthread_create(&m_thread, 0, &Sound::startLoop, this);
+    pthread_mutex_init(&m_mutex, 0) // fuck error handling
+    m_thread = (pthread_t*)malloc(sizeof(pthread_t));
+    pthread_create(m_thread, 0, &Sound::startLoop, this);
 }
 
 Sound::~Sound() {
     m_stopping = true;
-    pthread_join(m_thread, 0);
+    pthread_join((*m_thread), 0);
 
     delete m_samples;
     snd_pcm_close (m_captureHandle);
@@ -89,32 +90,44 @@ void *Sound::startLoop(void *obj) {
 }
 
 void Sound::mainloop() {
+    int16_t *buffer;
+    int16_t *tmp;
     while (!m_stopping) {
-        pthread_mutex_lock(&m_mutex);
-        if ((m_err = snd_pcm_readi (m_captureHandle, m_samples, 128)) != 128) {
+        if ((m_err = snd_pcm_readi (m_captureHandle, buffer, 128)) != 128) {
             fprintf (stderr, "read from audio interface failed (%s)\n",
                  snd_strerror (m_err));
             exit (1);
         }
+
+        // Switcharoo
+        pthread_mutex_lock(&m_mutex);
+        tmp = m_samples;
+        m_samples = buffer;
         pthread_mutex_unlock(&m_mutex);
+        buffer = tmp;
     }
 
-    pthread_mutex_unlock;
+    pthread_mutex_unlock(&m_mutex);
 }
 
 int Sound::getBass() {
     int bass;
     pthread_mutex_lock(&m_mutex);
     
-    float *spectrum = new float[m_fht.size()];
-    float *samples = new float[m_fht.size()];
-    for (short i=0; i<m_fht.size(); i++) {//bleh, must be a better way
-        samples[i] = spectrum[i] = m_samples[i];
-    }
+    float *buffer = new float[512];
+    float *input = new float[512];
 
-    m_fht.logSpectrum(samples, spectrum);
-    m_fht.scale(samples, 1.0 / 20);
-    bass = 10 * samples[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
+    for (int i=0; i<512; i++) {
+        input[i] = static_cast<float>(m_samples[i]) / static_cast<float>(0x7fff);
+    }   
+
+    m_fht.copy(buffer, input);
+    m_fht.logSpectrum(input, buffer);
+    m_fht.scale(buffer, 1.0/20);
+
+//    m_fht.ewma(&m_history.front(), buffer, .75);
+
+    bass = 10 * buffer[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
     
     pthread_mutex_unlock(&m_mutex);
 

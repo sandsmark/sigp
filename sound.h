@@ -6,9 +6,14 @@
 
 #include "fht.h"
 
+
+/**
+ * Class providing sound input and transforms to the frequency domain.
+ */
+
 class Sound {
 public:
-    Sound(char *device);
+    Sound(const char *device);
     ~Sound();
     int getBass();
 
@@ -18,7 +23,7 @@ private:
 
     int16_t *m_samples;
     pthread_mutex_t m_mutex;
-    pthread_t m_thread;
+    pthread_t *m_thread;
     FHT m_fht;
 
     bool m_stopping;
