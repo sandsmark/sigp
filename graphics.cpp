@@ -24,7 +24,9 @@ Graphics::Graphics(int argc, char **argv):
     glClearColor(0, 0, 0, 0); 
     
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    //glEnable(GL_TEXTURE_2D);  
+    //glEnable(GL_TEXTURE_2D);
+    
+    glutKeyboardFunc(keydown);
     
     glutDisplayFunc(&display);
     glutIdleFunc(&display);
@@ -49,6 +51,21 @@ Graphics::Graphics(int argc, char **argv):
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_DEPTH_TEST);
+}
+
+void Graphics::keydown(unsigned char key, int x, int y) {
+    switch (key) {
+    case '\033':
+        glutLeaveGameMode();
+        exit(0);
+        break;
+    case 'f':
+        glutFullScreen();
+        break;
+    default:
+        return;
+    }
+    glutPostRedisplay();
 }
 
 void Graphics::display(void) {
@@ -143,7 +160,7 @@ void Graphics::compileObject(){
 				me->m_parser->skipChunk();
 				break;
 
-            case DIFFUSE_COLOR:
+            case SPECULAR_COLOR:
                 break;
 
             case RGB1:
@@ -186,13 +203,8 @@ void Graphics::compileObject(){
         cface = faces[(*it).first];
 
         for (int i=0; i<faceCount[(*it).first]; i++) {
-//            glBegin(GL_POINTS);
-//            glPointSize(280.0);
             normal = vector3::normal(vertex[cface[i].a], vertex[cface[i].b], vertex[cface[i].c]);
-//            glVertex3f( normal.x*1.2, normal.y*1.2, normal.z*1.2);
-//            glEnd();
             glBegin(GL_TRIANGLES);
-            //printf("Face %i : %f %f %f\n", i, normal.x, normal.y, normal.z); 
             glMaterialiv(GL_FRONT, GL_SPECULAR, (GLint*)&colors[(*it).first]);
             glNormal3f(normal.x, normal.y, normal.z);
             glVertex3fv((GLfloat*)&vertex[cface[i].a]);

@@ -19,6 +19,7 @@ private:
     static void reshape(int w, int h);
     static void drawCube(float width, float height, float depth);
     static void drawScene();
+    static void keydown(unsigned char key, int x, int y);
     void compileObject();
     void drawObject();
     vector<GLuint> m_callLists;
