@@ -57,18 +57,24 @@ void Graphics::display(void) {
     gluLookAt(-5,  5, 5, // Eye
                0, 0, 0,  // Focus
                0.0,  1.0,  0.0); // Up
-    
+    int bass = me->m_sound.getBass();
+
     struct timeval now;
     gettimeofday(&now, NULL);
     suseconds_t cur = (now.tv_sec * 1000000) + now.tv_usec;
     suseconds_t diff = cur - me->m_lastUpdate;
     me->m_lastUpdate = cur;
 
-    me->m_angle += diff / 5000;
+    me->m_angleSpeed += bass;
+    me->m_angleSpeed /= 1.05;
+    me->m_angle += diff*(me->m_angleSpeed+1) / 5000;
     if (me->m_angle > 360) me->m_angle = -360;
-    glRotatef(me->m_angle, 1, 0, 0);
+    glRotatef(me->m_angle, 1, 1, 1);
 
-    if (me->m_sound.getBass() > 0) printf("KEKEKEKEKEK\n");
+    me->m_scale += bass;
+    me->m_scale /= 1.1;
+    if (me->m_scale > 1.5) me->m_scale = 1.5;
+    glScalef(me->m_scale+1, me->m_scale+1, me->m_scale+1);
 
 //    glutSolidSphere(2,5,5);
     for (int i=0; i<me->m_callLists.size(); i++)

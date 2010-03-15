@@ -22,7 +22,8 @@ private:
     void mainloop();
 
     int16_t *m_samples;
-    pthread_mutex_t m_mutex;
+    float *m_history;
+    pthread_mutex_t *m_mutex;
     pthread_t *m_thread;
     FHT m_fht;
 

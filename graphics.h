@@ -1,7 +1,7 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
-#define FILENAME "sphere.3ds"
+#define FILENAME "realcube.3ds"
 #include "C3dsParser.h"
 #include "sound.h"
 #include <stdint.h>
@@ -28,6 +28,7 @@ private:
 
     float m_angle;
     float m_angleSpeed;
+    float m_scale;
 
     Sound m_sound;
     suseconds_t m_lastUpdate;

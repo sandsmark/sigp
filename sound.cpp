@@ -69,8 +69,10 @@ Sound::Sound (const char *device) :
     }
 
     m_samples = new int16_t[128];
+    m_history = new float[128];
 
-    pthread_mutex_init(&m_mutex, 0); // fuck error handling
+    m_mutex = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t)); 
+    pthread_mutex_init(m_mutex, 0); // fuck error handling
     m_thread = (pthread_t*)malloc(sizeof(pthread_t));
     pthread_create(m_thread, 0, &Sound::startLoop, this);
 }
@@ -82,7 +84,7 @@ Sound::~Sound() {
     delete m_samples;
     snd_pcm_close (m_captureHandle);
 
-    pthread_mutex_destroy(&m_mutex);
+    pthread_mutex_destroy(m_mutex);
 }
 
 void *Sound::startLoop(void *obj) {
@@ -100,36 +102,41 @@ void Sound::mainloop() {
         }
 
         // Switcharoo
-        pthread_mutex_lock(&m_mutex);
+        pthread_mutex_lock(m_mutex);
         tmp = m_samples;
         m_samples = buffer;
-        pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_unlock(m_mutex);
         buffer = tmp;
     }
 
-    pthread_mutex_unlock(&m_mutex);
+    pthread_mutex_unlock(m_mutex);
 }
 
 int Sound::getBass() {
-    int bass;
-    pthread_mutex_lock(&m_mutex);
+    int bass = 0;
+    pthread_mutex_lock(m_mutex);
     
-    float *buffer = new float[512];
+    float *buffer = new float[128];
     float *input = new float[512];
 
-    for (int i=0; i<512; i++) {
+    for (int i=0; i<128; i++) {
         input[i] = static_cast<float>(m_samples[i]) / static_cast<float>(0x7fff);
     }   
+    pthread_mutex_unlock(m_mutex);
 
     m_fht.copy(buffer, input);
     m_fht.logSpectrum(input, buffer);
     m_fht.scale(buffer, 1.0/20);
 
-//    m_fht.ewma(&m_history.front(), buffer, .75);
+    m_fht.ewma(m_history, buffer, .75);
 
-    bass = 10 * buffer[m_fht.size()/2 - 1];// 128 audio samples in → 64 data points out
+    bass += 10 * buffer[(m_fht.size()/2 - 1)];// 128 audio samples in → 64 data points out
+    //for (int i=0; i<16; i++) 
+    //    bass += 10 * buffer[(m_fht.size()/2 - 1) - i];// 128 audio samples in → 64 data points out
+    //bass /= 16;
     
-    pthread_mutex_unlock(&m_mutex);
+//    for (int i=0; i<64; i++) printf("%1.1f", buffer[i]);
+//    printf("\n");
 
     return bass;
 }
