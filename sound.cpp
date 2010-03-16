@@ -130,10 +130,7 @@ int Sound::getBass() {
 
     m_fht.ewma(m_history, buffer, .75);
 
-    bass += 10 * buffer[(m_fht.size()/2 - 1)];// 128 audio samples in → 64 data points out
-    //for (int i=0; i<16; i++) 
-    //    bass += 10 * buffer[(m_fht.size()/2 - 1) - i];// 128 audio samples in → 64 data points out
-    //bass /= 16;
+    bass += 10 * buffer[1];// 128 audio samples in → 64 data points out
     
 //    for (int i=0; i<64; i++) printf("%1.1f", buffer[i]);
 //    printf("\n");

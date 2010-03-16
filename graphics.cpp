@@ -43,20 +43,21 @@ Graphics::Graphics(int argc, char **argv):
     
 
     GLfloat light_position[] = { -5.0, 5.0, 5.0, 0.0 };
-    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+//    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 
-    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+//    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+//    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
     
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_DEPTH_TEST);
+
+    m_angleSpin = { 1, 1, 1 };
 }
 
 void Graphics::keydown(unsigned char key, int x, int y) {
     switch (key) {
     case '\033':
-        glutLeaveGameMode();
         exit(0);
         break;
     case 'f':
@@ -84,16 +85,20 @@ void Graphics::display(void) {
 
     me->m_angleSpeed += bass;
     me->m_angleSpeed /= 1.05;
+    if (me->m_angleSpeed > 1) me->m_angleSpeed = 1;
     me->m_angle += diff*(me->m_angleSpeed+1) / 5000;
     if (me->m_angle > 360) me->m_angle = -360;
-    glRotatef(me->m_angle, 1, 1, 1);
+    glRotatef(me->m_angle/2, 1, me->m_angleSpeed, me->m_scale);
 
-    me->m_scale += bass;
+//    printf("%i\n", bass);
+    if (bass > 7) {
+        me->m_scale += bass;
+    }
     me->m_scale /= 1.1;
-    if (me->m_scale > 1.5) me->m_scale = 1.5;
+    if (me->m_scale > 1) me->m_scale = 1;
     glScalef(me->m_scale+1, me->m_scale+1, me->m_scale+1);
 
-//    glutSolidSphere(2,5,5);
+
     for (int i=0; i<me->m_callLists.size(); i++)
        glCallList(me->m_callLists[i]);
 
@@ -107,7 +112,7 @@ void Graphics::compileObject(){
     map<string, vector3*> vertices;
     map<string, int>      vertCount;
     map<string, int>      faceCount;
-    map<string, color*>   faceMaterial;
+    map<string, color>   faceMaterial;
     map<string, color>    colors;
 
     while ( !me->m_parser->eof() ) {
@@ -160,7 +165,7 @@ void Graphics::compileObject(){
 				me->m_parser->skipChunk();
 				break;
 
-            case SPECULAR_COLOR:
+            case DIFFUSE_COLOR:
                 break;
 
             case RGB1:
@@ -172,11 +177,8 @@ void Graphics::compileObject(){
             case FACES_MATERIAL:
                 mat = me->m_parser->extractStrData();
                 numFaces = me->m_parser->extractValue<uint16_t>();
-                faceMaterial[currentMesh] = new color[numFaces];
                 printf("Colored faces: %hu\n", numFaces);
-                for (uint16_t i=0; i<numFaces; i++) {
-                    faceMaterial[currentMesh][i] = colors[mat];
-                }
+                faceMaterial[currentMesh] = colors[mat];
                 me->m_parser->skipChunk();
                 break;
 
@@ -193,7 +195,9 @@ void Graphics::compileObject(){
     face *cface;
     vector3 normal;
     GLuint list;
+    GLfloat color[3];
 
+    GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 0.0 };
     for (map<string, vector3*>::iterator it = vertices.begin(); it != vertices.end(); it++) {
         list = glGenLists(1);
         glNewList(list, GL_COMPILE);
@@ -205,7 +209,10 @@ void Graphics::compileObject(){
         for (int i=0; i<faceCount[(*it).first]; i++) {
             normal = vector3::normal(vertex[cface[i].a], vertex[cface[i].b], vertex[cface[i].c]);
             glBegin(GL_TRIANGLES);
-            glMaterialiv(GL_FRONT, GL_SPECULAR, (GLint*)&colors[(*it).first]);
+            color[0] = faceMaterial[(*it).first].r/255.0f;
+            color[1] = faceMaterial[(*it).first].g/255.0f;
+            color[2] = faceMaterial[(*it).first].b/255.0f;
+            glMaterialfv(GL_FRONT, GL_SPECULAR, color);
             glNormal3f(normal.x, normal.y, normal.z);
             glVertex3fv((GLfloat*)&vertex[cface[i].a]);
             glVertex3fv((GLfloat*)&vertex[cface[i].b]);

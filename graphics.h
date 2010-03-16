@@ -31,6 +31,8 @@ private:
     float m_angleSpeed;
     float m_scale;
 
+    int m_angleSpin[3];
+
     Sound m_sound;
     suseconds_t m_lastUpdate;
 
