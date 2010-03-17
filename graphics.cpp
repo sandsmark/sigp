@@ -1,3 +1,22 @@
+// Graphics display
+//
+// Copyright (C) 2010  Martin Sandsmark - martin.sandsmark@kde.org
+// Copyright (C) 2010  Amund Hov - amundhov@samfundet.no
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation; either version 2 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, 51 Franklin Steet, Fifth Floor, Boston, MA 02110-1301, USA
+
 #include "graphics.h"
 #include "C3dsParser.h"
 #include "chunks.def"
@@ -8,23 +27,26 @@
 #include <math.h>
 #include <map>
 
-Graphics *Graphics::me;
 
+//fugly
+float Graphics::m_angle = 0;
+float Graphics::m_angleSpeed = 1;
+float Graphics::m_scale = 0;
+int Graphics::m_angleSpin[3];
+C3dsParser* Graphics::m_parser;
+vector<GLuint> Graphics::m_callLists;
+suseconds_t Graphics::m_lastUpdate;
+Sound Graphics::m_sound("default");
 
-Graphics::Graphics(int argc, char **argv):
-        m_angle(0),
-        m_angleSpeed(1),
-        m_sound("default")
+Graphics::Graphics(int argc, char **argv)
 {
     glutInit(&argc, argv);
-    glutInitWindowSize(640, 480);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutCreateWindow("iTK - DG - FK");
     
     glClearColor(0, 0, 0, 0); 
     
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    //glEnable(GL_TEXTURE_2D);
     
     glutKeyboardFunc(keydown);
     
@@ -33,39 +55,35 @@ Graphics::Graphics(int argc, char **argv):
     glutReshapeFunc(&reshape);
     glEnable(GL_DEPTH_TEST);
 
-    me = this; // having fun already
-    me->m_parser = new C3dsParser(FILENAME);
-    me->compileObject();
+    m_parser = new C3dsParser(FILENAME);
+    compileObject();
     GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
-    GLfloat mat_shininess[] = { 50.0 };
+    GLfloat mat_shininess[] = { 0.1 };
     glClearColor (0.0, 0.0, 0.0, 0.0);
     glShadeModel (GL_SMOOTH);
     
 
     GLfloat light_position[] = { -5.0, 5.0, 5.0, 0.0 };
-//    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-
-//    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-//    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
     
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_DEPTH_TEST);
 
     m_angleSpin = { 1, 1, 1 };
+
+    glutFullScreen();
+
+    glutMainLoop();
 }
 
 void Graphics::keydown(unsigned char key, int x, int y) {
     switch (key) {
-    case '\033':
+    case '\033': // Escape
         exit(0);
-        break;
-    case 'f':
-        glutFullScreen();
-        break;
     default:
         return;
     }
+
     glutPostRedisplay();
 }
 
@@ -75,32 +93,32 @@ void Graphics::display(void) {
     gluLookAt(-5,  5, 5, // Eye
                0, 0, 0,  // Focus
                0.0,  1.0,  0.0); // Up
-    int bass = me->m_sound.getBass();
+    int bass = m_sound.getBass();
 
     struct timeval now;
     gettimeofday(&now, NULL);
     suseconds_t cur = (now.tv_sec * 1000000) + now.tv_usec;
-    suseconds_t diff = cur - me->m_lastUpdate;
-    me->m_lastUpdate = cur;
+    suseconds_t diff = cur - m_lastUpdate;
+    m_lastUpdate = cur;
 
-    me->m_angleSpeed += bass;
-    me->m_angleSpeed /= 1.05;
-    if (me->m_angleSpeed > 1) me->m_angleSpeed = 1;
-    me->m_angle += diff*(me->m_angleSpeed+1) / 5000;
-    if (me->m_angle > 360) me->m_angle = -360;
-    glRotatef(me->m_angle/2, 1, me->m_angleSpeed, me->m_scale);
+    m_angleSpeed += bass;
+    m_angleSpeed /= 1.05;
+    if (m_angleSpeed > 1) m_angleSpeed = 1;
+    m_angle += diff*(m_angleSpeed+1) / 5000;
+    if (m_angle > 360) m_angle = -360;
+    glRotatef(m_angle/2, 1, m_angleSpeed, m_scale);
 
-//    printf("%i\n", bass);
     if (bass > 7) {
-        me->m_scale += bass;
+        m_scale += bass;
     }
-    me->m_scale /= 1.1;
-    if (me->m_scale > 1) me->m_scale = 1;
-    glScalef(me->m_scale+1, me->m_scale+1, me->m_scale+1);
+
+    m_scale /= 1.1;
+    if (m_scale > 1) m_scale = 1;
+    glScalef(m_scale+1, m_scale+1, m_scale+1);
 
 
-    for (int i=0; i<me->m_callLists.size(); i++)
-       glCallList(me->m_callLists[i]);
+    for (int i=0; i<m_callLists.size(); i++)
+       glCallList(m_callLists[i]);
 
     glutSwapBuffers();
 }
@@ -115,76 +133,64 @@ void Graphics::compileObject(){
     map<string, color>   faceMaterial;
     map<string, color>    colors;
 
-    while ( !me->m_parser->eof() ) {
-		me->m_parser->enterChunk();
-		switch ( me->m_parser->getChunkId() ){
+    while ( !m_parser->eof() ) {
+		m_parser->enterChunk();
+		switch ( m_parser->getChunkId() ){
 			case MAIN_CHUNK:
-				printf("Found main identifier %04x, length is %u bytes\n",me->m_parser->getChunkId(), me->m_parser->getChunkLength());
 				break;
 
 			case MAIN_VERSION:
-				printf("3DS version: %u\n", me->m_parser->extractValue<unsigned short>()  );
-				me->m_parser->skipChunk();
+				m_parser->skipChunk();
 				break;
 
 			case EDITOR_CHUNK:
-				printf("Found editor chunk length %u\n",me->m_parser->getChunkId(), me->m_parser->getChunkLength());
 				break;
 
 		   	case OBJECT_BLOCK:
-                currentMesh = me->m_parser->extractStrData();
-		      	printf("Object block, name %s\n", currentMesh.c_str());
+                currentMesh = m_parser->extractStrData();
 		   		break;
 
 		   	case TRIANGULAR_MESH:
-		   		printf("   Triangular mesh\n");
 		        break;
 
 		    case VERTICES_LIST:
                 assert(!currentMesh.empty());
 
-				vertCount[currentMesh] = me->m_parser->extractCount();
-				printf(" found %u me->m_vertices\n", vertCount[currentMesh]);
-				vertices[currentMesh] = me->m_parser->extractArray<vector3>(vertCount[currentMesh]);
+				vertCount[currentMesh] = m_parser->extractCount();
+				vertices[currentMesh] = m_parser->extractArray<vector3>(vertCount[currentMesh]);
 		       	break;
 
 			case FACES_LIST:
-				faceCount[currentMesh] = me->m_parser->extractCount();
-				printf(" found %u me->m_faces\n", faceCount[currentMesh]);
-                printf("Offset: %x\n", me->m_parser->getChunkOffset());
-				faces[currentMesh] = me->m_parser->extractArray<face>(faceCount[currentMesh], 2);
+				faceCount[currentMesh] = m_parser->extractCount();
+				faces[currentMesh] = m_parser->extractArray<face>(faceCount[currentMesh], 2);
 		       	break;
 				
 			case MATERIAL_BLOCK:
-				printf("Material block length %u\n", me->m_parser->getChunkLength());
 				break;
 
 			case MATERIAL_NAME:
-                currentMaterial = me->m_parser->extractStrData();
-				printf("Material name: %s\n", currentMaterial.c_str());
-				me->m_parser->skipChunk();
+                currentMaterial = m_parser->extractStrData();
+				m_parser->skipChunk();
 				break;
 
             case DIFFUSE_COLOR:
                 break;
 
             case RGB1:
-                colors[currentMaterial] = me->m_parser->extractValue<color>();
-                printf("Diffuse color: r:%i, g:%i, b:%i\n", colors[currentMaterial]);
-				me->m_parser->skipChunk();
+                colors[currentMaterial] = m_parser->extractValue<color>();
+				m_parser->skipChunk();
                 break;
 
             case FACES_MATERIAL:
-                mat = me->m_parser->extractStrData();
-                numFaces = me->m_parser->extractValue<uint16_t>();
-                printf("Colored faces: %hu\n", numFaces);
+                mat = m_parser->extractStrData();
+                numFaces = m_parser->extractValue<uint16_t>();
                 faceMaterial[currentMesh] = colors[mat];
-                me->m_parser->skipChunk();
+                m_parser->skipChunk();
                 break;
 
 			default:
-				printf("Unkown chunk %04x of length %u\n", me->m_parser->getChunkId(), me->m_parser->getChunkLength());
-				me->m_parser->skipChunk();
+				printf("Unkown chunk %04x of length %u\n", m_parser->getChunkId(), m_parser->getChunkLength());
+				m_parser->skipChunk();
 				break;
 
             }
@@ -201,7 +207,7 @@ void Graphics::compileObject(){
     for (map<string, vector3*>::iterator it = vertices.begin(); it != vertices.end(); it++) {
         list = glGenLists(1);
         glNewList(list, GL_COMPILE);
-        me->m_callLists.push_back(list);
+        m_callLists.push_back(list);
 
         vertex = vertices[(*it).first];
         cface = faces[(*it).first];
@@ -212,7 +218,7 @@ void Graphics::compileObject(){
             color[0] = faceMaterial[(*it).first].r/255.0f;
             color[1] = faceMaterial[(*it).first].g/255.0f;
             color[2] = faceMaterial[(*it).first].b/255.0f;
-            glMaterialfv(GL_FRONT, GL_SPECULAR, color);
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, color);
             glNormal3f(normal.x, normal.y, normal.z);
             glVertex3fv((GLfloat*)&vertex[cface[i].a]);
             glVertex3fv((GLfloat*)&vertex[cface[i].b]);
@@ -230,10 +236,5 @@ void Graphics::reshape(int w, int h) {
   gluPerspective(45.0f,(GLfloat)w/(GLfloat)h,0.1f,100.0f);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-}
-
-
-void Graphics::run() {
-  glutMainLoop();
 }
 

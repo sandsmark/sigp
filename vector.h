@@ -14,7 +14,7 @@ struct vector3 {
     static inline vector3 cross(vector3 a, vector3 b){
             vector3 ret;
             ret.x = a.y*b.z - a.z*b.y;
-            ret.y = a.x*b.z - a.z*b.x;
+            ret.y = a.z*b.x - a.x*b.z;
             ret.z = a.x*b.y - a.y*b.x;
     
             return ret;
@@ -34,3 +34,4 @@ struct vector3 {
     }
 };
 #endif//VECTOR_H
+

@@ -1,10 +1,31 @@
-demo: common.cpp C3dsParser.cpp C3dsParser.h graphics.cpp graphics.h sound.h sound.cpp main.cpp fht.cpp fht.h
-	g++ common.cpp fht.cpp graphics.cpp sound.cpp main.cpp C3dsParser.cpp -g -lGL -lGLU -lglut -lasound -std=gnu++0x -o demo
+OBJS = C3dsParser.o graphics.o sound.o main.o fht.o
+CC = g++
+CFLAGS =-c -g -std=gnu++0x
+LFLAGS =
+LIBS =-lGL -lGLU -lglut -lasound
+
+run: demo
+	./demo
+
+demo: $(OBJS)
+	$(CC) $(LFLAGS) $(OBJS) $(LIBS) -o $@ 
+
+C3dsParser.o : C3dsParser.cpp C3dsParser.h
+	$(CC) $(CFLAGS) -o $@ C3dsParser.cpp
+
+graphics.o : graphics.cpp graphics.h C3dsParser.h chunks.def sound.h vector.h
+	$(CC) $(CFLAGS) -o $@ graphics.cpp
+
+sound.o : sound.cpp sound.h fht.h
+	$(CC) $(CFLAGS) -o $@ sound.cpp
+
+main.o : main.cpp graphics.h
+	$(CC) $(CFLAGS) -o $@ main.cpp
+
+fht.o : fht.cpp fht.h
+	$(CC) $(CFLAGS) -o $@ fht.cpp
 
 .PHONY :  clean
 
 clean:
-	rm demo
-
-run:demo
-	./demo
+	rm demo $(OBJS)

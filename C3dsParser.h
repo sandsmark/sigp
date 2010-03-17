@@ -50,7 +50,6 @@ public:
 	inline unsigned int extractCount(){
 	    uint16_t ret;
 		fread(&ret, sizeof(ret), 1, m_file);
-		printf("Count is %i\n", ret);
 		return ret;
 	}
 
