@@ -66,7 +66,7 @@ Sound::Sound (const char *device) :
         exit (1);
     }
 
-    if ((m_err = snd_pcm_hw_params_set_channels (m_captureHandle, hw_params, 2)) < 0) {
+    if ((m_err = snd_pcm_hw_params_set_channels (m_captureHandle, hw_params, 1)) < 0) {
         fprintf (stderr, "cannot set channel count (%s)\n",
              snd_strerror (m_err));
         exit (1);
