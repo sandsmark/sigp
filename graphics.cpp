@@ -43,13 +43,13 @@ Graphics::Graphics(int argc, char **argv)
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutCreateWindow("iTK - DG - FK");
-    
+
     glClearColor(0, 0, 0, 0); 
-    
+
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-    
+
     glutKeyboardFunc(keydown);
-    
+
     glutDisplayFunc(&display);
     glutIdleFunc(&display);
     glutReshapeFunc(&reshape);
@@ -61,17 +61,17 @@ Graphics::Graphics(int argc, char **argv)
     GLfloat mat_shininess[] = { 0.1 };
     glClearColor (0.0, 0.0, 0.0, 0.0);
     glShadeModel (GL_SMOOTH);
-    
+
 
     GLfloat light_position[] = { -5.0, 5.0, 5.0, 0.0 };
-    
+
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_DEPTH_TEST);
 
     m_angleSpin = { 1, 1, 1 };
 
-    glutFullScreen();
+//    glutFullScreen();
 
     glutMainLoop();
 }
@@ -164,7 +164,7 @@ void Graphics::compileObject(){
 				faceCount[currentMesh] = m_parser->extractCount();
 				faces[currentMesh] = m_parser->extractArray<face>(faceCount[currentMesh], 2);
 		       	break;
-				
+
 			case MATERIAL_BLOCK:
 				break;
 

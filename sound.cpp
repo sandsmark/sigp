@@ -110,8 +110,8 @@ void *Sound::startLoop(void *obj) {
 }
 
 void Sound::mainloop() {
-    int16_t *buffer;
-    int16_t *tmp;
+    int16_t *buffer = new int16_t[128];
+    int16_t *tmp = new int16_t[128];
     while (!m_stopping) {
         if ((m_err = snd_pcm_readi (m_captureHandle, buffer, 128)) != 128) {
             fprintf (stderr, "read from audio interface failed (%s)\n",
