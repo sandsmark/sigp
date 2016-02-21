@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <iostream>
 
 #include "sound.h"
       
@@ -130,8 +131,9 @@ void Sound::mainloop() {
     pthread_mutex_unlock(m_mutex);
 }
 
-int Sound::getBass() {
-    int bass = 0;
+float Sound::getBass() {
+    static float oldBass = 0;
+    float bass = 0;
     pthread_mutex_lock(m_mutex);
     
     float *buffer = new float[128];
@@ -146,10 +148,25 @@ int Sound::getBass() {
     m_fht.logSpectrum(input, buffer);
     m_fht.scale(buffer, 1.0/20);
 
-    m_fht.ewma(m_history, buffer, .75);
+    m_fht.ewma(m_history, buffer, .99);
 
-    bass += 10 * buffer[1];// 128 audio samples in → 64 data points out
+    for (int i=0; i<59; i++) {
+        for (int j=0; j<buffer[i]*100; j++) {
+            std::cout << '|';
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "--------------------------------------------------" << std::endl;
+
+//    for (int i=0; i<5; i++) bass += buffer[i];
+    bass = buffer[1] * 10;
+
+    float ret = bass - oldBass;
+    oldBass = bass;
+    if (ret < 0) ret = 0;
+
+//    bass = 10 * buffer[1];// 128 audio samples in → 64 data points out
     
-    return bass;
+    return ret;
 }
 

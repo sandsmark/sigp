@@ -1,8 +1,9 @@
+# COPYRIGHT 2010 Martin T. Sandsmark
 OBJS = C3dsParser.o graphics.o sound.o main.o fht.o
 CC = g++
-CFLAGS =-c -g -std=gnu++0x
+CFLAGS =-c -g -std=c++0x
 LFLAGS =
-LIBS =-lGLU -lglut -lasound
+LIBS =-lGL -lGLU -lglut -lasound -lpthread
 
 run: demo
 	./demo

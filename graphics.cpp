@@ -32,7 +32,7 @@
 float Graphics::m_angle = 0;
 float Graphics::m_angleSpeed = 1;
 float Graphics::m_scale = 0;
-int Graphics::m_angleSpin[3];
+int Graphics::m_angleSpin[3] = { 1, 1, 1 };
 C3dsParser* Graphics::m_parser;
 vector<GLuint> Graphics::m_callLists;
 suseconds_t Graphics::m_lastUpdate;
@@ -69,7 +69,7 @@ Graphics::Graphics(int argc, char **argv)
     glEnable(GL_LIGHT0);
     glEnable(GL_DEPTH_TEST);
 
-    m_angleSpin = { 1, 1, 1 };
+/*    m_angleSpin = { 1, 1, 1 };*/
 
 //    glutFullScreen();
 
@@ -93,7 +93,7 @@ void Graphics::display(void) {
     gluLookAt(-5,  5, 5, // Eye
                0, 0, 0,  // Focus
                0.0,  1.0,  0.0); // Up
-    int bass = m_sound.getBass();
+    float bass = m_sound.getBass();
 
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -108,9 +108,10 @@ void Graphics::display(void) {
     if (m_angle > 360) m_angle = -360;
     glRotatef(m_angle/2, 1, m_angleSpeed, m_scale);
 
-    if (bass > 7) {
-        m_scale += bass;
-    }
+    std::cout << bass << std::endl;
+//    m_scale += tanf(bass) / 15;
+//    if (bass > 0.9) m_scale += bass;
+    m_scale += bass*bass;
 
     m_scale /= 1.1;
     if (m_scale > 1) m_scale = 1;
